@@ -160,7 +160,7 @@ void Notif(){
      }
 
      if(value == 101){
-        Blynk.logEvent("distance_notif", String("Walker detected an obstacle. Now Turning."));
+        Blynk.logEvent("distance_notif", String("Edge has been detected. Checked the device."));
       }
 
   }
