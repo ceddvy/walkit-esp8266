@@ -15,21 +15,33 @@
 //#define USE_WITTY_CLOUD_BOARD
 //#define USE_WEMOS_D1_MINI
 
-#define trigPin D2
-#define echoPin D1
+#define BLYNK_FIRMWARE_VERSION        "0.1.0"
+
+#define BLYNK_PRINT Serial
+//#define BLYNK_DEBUG
+
+#define APP_DEBUG
+
+// Uncomment your board, or configure a custom board in Settings.h
+//#define USE_SPARKFUN_BLYNK_BOARD
+#define USE_NODE_MCU_BOARD
+//#define USE_WITTY_CLOUD_BOARD
+//#define USE_WEMOS_D1_MINI
 
 #include "BlynkEdgent.h"
 #include <SoftwareSerial.h>
 
 SoftwareSerial mySerial(D5, D6); // Rx, Tx pins
 
+unsigned long sendTime;
+unsigned long receiveTime;
+
+
 BlynkTimer timer; 
 int control;
 int setDistance;
-int value = 0;
 int val;
 int mode;
-
 
 void setup()
 {
@@ -37,17 +49,22 @@ void setup()
   mySerial.begin(9600);
   
   BlynkEdgent.begin();
+
   timer.setInterval(1000L, sendSensor);
+
   timer.setInterval(1000L, Notif);
-    
+ 
 }
 
 void loop() {
-  BlynkEdgent.run();  
+  BlynkEdgent.run();
+  
   timer.run(); 
+  
   
 }
 
+/*Setup the default value when the device goes online*/
 BLYNK_CONNECTED()
 {
   mode = 1;
@@ -59,21 +76,28 @@ BLYNK_CONNECTED()
 BLYNK_WRITE(V1){
   int getMode = param.asInt();
 
-  if(getMode == 1){
-    mode = 1; //mode is 1 which is on
+  if(getMode != 0){
+    if(getMode == 1){
+    
+    Serial.println("1"); //automation is off
+    getMode = 0;
   }else{
-    mode = 3; //mode is 2 which is off
+    Serial.println("3"); //automation is on
+    getMode = 0;
   }
-}
+  }
+  
 
+}
 
 //Forward
 BLYNK_WRITE(V6){
-  // int setValue = param.asInt();
+  int setValue = param.asInt();
   int getForward = param.asInt();
   if (getForward == 6){
     
     control = getForward;
+
   }  
 
 }
@@ -102,14 +126,19 @@ BLYNK_WRITE(V9){
 
 }
 
+//Distance callibration
 BLYNK_WRITE(V5){
   int getDistance = param.asInt();
   if (getDistance > 10){
     setDistance = getDistance;
   }
+  
 
 }
 
+
+/*This method will send the controls, setting
+the distance and automation to the arduino*/
 void sendSensor(){
   
   if(control != 0){
@@ -126,42 +155,30 @@ void sendSensor(){
 
   } 
 
-  AutomationOnOff();
-
-
 }
 
-void AutomationOnOff(){
-  if(mode==1) {
-    Serial.println("1"); //automation is on
-    mode = 0;
-  } 
-  else if(mode == 3){
-     Serial.println("3"); //automation is off
-     mode = 0;  
-  }
-}
 
+/*This method will check the data been transferred
+by the arduino.*/
 void Notif(){
+
    if(mySerial.available()){
-      String msg = mySerial.readStringUntil('\n');   
-      msg.trim();
-      
-      int index = msg.indexOf(':');
-
-      if (index != -1) { // Check if colon character found
-      String valueStr = msg.substring(index + 1); // Extract the substring after the colon character
-      value = valueStr.toInt(); // Convert the extracted substring to integer
-      }
-     
-    
-     if(value>0 && value<=100){
-       Blynk.virtualWrite(V2, value);
-     }
-
-     if(value == 101){
-        Blynk.logEvent("distance_notif", String("Edge has been detected. Checked the device."));
-      }
+      String msg = mySerial.readStringUntil('\n');      
+        msg.trim();
+        int value = 0;
+        int index = msg.indexOf(':');
+        
+        if (index != -1) { // Check if colon character found
+          String valueStr = msg.substring(index + 1); // Extract the substring after the colon character
+          value = valueStr.toInt(); // Convert the extracted substring to integer
+        }
+          
+        if(value>0 || value <=100){
+          Blynk.virtualWrite(V2, value);
+        }
+        if(value == 101){
+          Blynk.logEvent("distance_notif", String("Edge has been detected. Please check the walker.")); // Notify the user
+        }
 
   }
 }
